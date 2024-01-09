@@ -1,90 +1,74 @@
-// Function to add a candy item to localStorage
-function addCandy() {
-    // Get the values from the input fields
-    const name = document.getElementById('name').value;
-    const description = document.getElementById('des').value;
-    const price = document.getElementById('price').value;
-    const quantity = document.getElementById('qty').value;
-  
-    // Create an object to represent the candy item
-    const candyItem = {
-      name: name,
-      description: description,
-      price: price,
-      quantity: quantity,
-    };
-  
-    // Check if localStorage already has candy items
-    let candyItems = JSON.parse(localStorage.getItem('candyItems')) || [];
-  
-    // Add the new candy item to the array
-    candyItems.push(candyItem);
-  
-    // Update localStorage with the new array
-    localStorage.setItem('candyItems', JSON.stringify(candyItems));
-  
-    // Clear the input fields
-    document.getElementById('name').value = '';
-    document.getElementById('des').value = '';
-    document.getElementById('price').value = '';
-    document.getElementById('qty').value = '';
-  
-    // Refresh the candy list
-    displayCandyList();
-  }
-  
-  // Function to display the candy items on the screen
-  function displayCandyList() {
-    const ul = document.getElementById('ul');
-    ul.innerHTML = ''; // Clear the existing list
-  
-    // Get candy items from localStorage
-    let candyItems = JSON.parse(localStorage.getItem('candyItems')) || [];
-  
-    // Loop through the candy items and create list items for each
-    candyItems.forEach((item, index) => {
-      const li = document.createElement('li');
-      li.innerHTML = `${item.name} - ${item.description} - Price: ${item.price} - Quantity: ${item.quantity}
-      <button onclick="buyCandy1(${index})">Buy-1</button><button onclick="buyCandy2(${index})">Buy-2</button>
-      <button onclick="buyCandy3(${index})">Buy-3</button>`;
-      ul.appendChild(li);
-    });
-  }
-  
-  // Function to update the stock when buying candy
-  function buyCandy1(index) {
-    let candyItems = JSON.parse(localStorage.getItem('candyItems')) || [];
-  
-    if (candyItems[index] && candyItems[index].quantity > 0) {
-      candyItems[index].quantity--;
-      localStorage.setItem('candyItems', JSON.stringify(candyItems));
-    }
-  
-    displayCandyList(); // Refresh the candy list
-  }
+const bodyParser = require('body-parser');
+const express = require('express');
 
-  function buyCandy2(index) {
-    let candyItems = JSON.parse(localStorage.getItem('candyItems')) || [];
-  
-    if (candyItems[index] && candyItems[index].quantity > 0) {
-      candyItems[index].quantity = candyItems[index].quantity - 2;
-      localStorage.setItem('candyItems', JSON.stringify(candyItems));
-    }
-  
-    displayCandyList(); // Refresh the candy list
-  }
+const sequelize = require('./utils/database');
+const Candy = require('./model/candy');
 
-  function buyCandy3(index) {
-    let candyItems = JSON.parse(localStorage.getItem('candyItems')) || [];
-  
-    if (candyItems[index] && candyItems[index].quantity > 0) {
-      candyItems[index].quantity = candyItems[index].quantity - 3;
-      localStorage.setItem('candyItems', JSON.stringify(candyItems));
+var cors = require('cors');
+
+
+const app = express();
+
+app.use(cors());
+app.use(bodyParser.json())
+
+app.get('/candy/:id', async (req, res) => {
+    const id = req.params.id;
+    const candy = await Candy.findByPk(id)
+    res.send(candy);
+})
+
+app.get('/candies', async(req, res) => {
+    const candies = await Candy.findAll();
+    res.send(candies);
+
+});
+
+app.post('/candy', async (req, res) => {
+
+    const name = req.body.name;
+    const description = req.body.description;
+    const price = req.body.price;
+    const quantity = req.body.quantity;
+
+    // console.log(name, description, price, quantity)
+
+    const candy = await Candy.create({
+        name: name,
+        description: description,
+        price: price,
+        quantity: quantity
+    })
+    res.send(candy);
+});
+
+app.put('/candy/:id', async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const candy = await Candy.findByPk(id);
+
+        if (!candy) {
+            return res.status(404).json({ error: 'Candy not found' });
+        }
+
+        candy.quantity = req.body.quantity;
+        await candy.save();
+        res.send(candy);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal Server Error' });
     }
-  
-    displayCandyList(); // Refresh the candy list
-  }
-  
-  // Initial display of candy items when the page loads
-  displayCandyList();
-  
+
+})
+
+sequelize
+    // .sync({force: true})
+    .sync()
+
+    .then((result) => {
+
+        console.log("app started")
+        app.listen(3000);
+    })
+    .catch(err => console.log(err));
